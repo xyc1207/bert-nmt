@@ -148,12 +148,13 @@ class SequenceGenerator(object):
 
         # compute the encoder output for each beam
         bertinput = sample['net_input']['bert_input']
-        bert_encoder_padding_mask = bertinput.eq(model.models[0].berttokenizer.pad())
-        bert_outs, _ = model.models[0].bert_encoder(bertinput, output_all_encoded_layers=True, attention_mask= 1. - bert_encoder_padding_mask)
-        bert_outs = bert_outs[self.bert_output_layer]
+        bert_encoder_padding_mask = bertinput.eq(model.models[0].berttokenizer.convert_tokens_to_ids("[PAD]"))
+
+        bert_outs = model.models[0].bert_encoder(bertinput, output_hidden_states=True, attention_mask= ~bert_encoder_padding_mask)
+        bert_outs = bert_outs[2][self.bert_output_layer]
         if model.models[0].mask_cls_sep:
-            bert_encoder_padding_mask += bertinput.eq(model.models[0].berttokenizer.cls())
-            bert_encoder_padding_mask += bertinput.eq(model.models[0].berttokenizer.sep())
+            bert_encoder_padding_mask += bertinput.eq(model.models[0].berttokenizer.convert_tokens_to_ids("[CLS]"))
+            bert_encoder_padding_mask += bertinput.eq(model.models[0].berttokenizer.convert_tokens_to_ids("[SEP]"))
         bert_outs = bert_outs.permute(1,0,2).contiguous()
         # bert_outs = F.linear(bert_outs, model.models[0].trans_weight, model.models[0].trans_bias)
         bert_outs = [{
